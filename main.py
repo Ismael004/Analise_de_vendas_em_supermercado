@@ -4,15 +4,17 @@ from plotly.subplots import make_subplots
 from plotly.graph_objs import Figure
 from typing import List
 import plotly.io as pio
+import logging
 
 class Analise_Exploratoria_marketplace:
-    def __init__(self, arquivo_csv: str):
+    def __init__(self, arquivo_csv: str ):
         try:
             self.df = pd.read_csv(arquivo_csv)
-            print("Arquivo carregado com sucesso")
+            logging.info("Arquivo csv encontrada com sucesso!")
         except FileNotFoundError:
             print("Arquivo csv não encontrado")
             self.df = pd.DataFrame()
+            raise
     
     def exibir_tabela_inicial(self) -> None:
         print(self.df.head())
@@ -23,6 +25,10 @@ class Analise_Exploratoria_marketplace:
     def __contar_dados_coluna(self, coluna_analisada: str, novo_nome_coluna: str) -> pd.DataFrame:
         contagem = self.df[coluna_analisada].value_counts().reset_index()
         contagem.columns = [coluna_analisada, novo_nome_coluna]
+        return contagem
+    
+    def contar_dados_varias_colunas(self, colunas_analisadas: List[str]) -> pd.DataFrame:
+        contagem = self.df[colunas_analisadas].value_counts().reset_index()
         return contagem
     
     def __gerar_grafico_barras(self, 
@@ -54,6 +60,33 @@ class Analise_Exploratoria_marketplace:
                      title="Distribuição percentual")
         return fig
     
+    def operacoes_colunas_criar_nova(self, colunas: List[str], operacao: str):
+        df_colunas = self.contar_dados_varias_colunas(colunas)
+
+        for col in colunas: 
+            if col not in df_colunas.columns:
+                raise ValueError(f"A coluna '{col}' não existe no Dataframe")
+            
+        resultado = df_colunas[colunas[0]]
+
+        for col in colunas[1:]:
+            if operacao == "+":
+                resultado = resultado + df_colunas[col]
+            elif operacao == "-":
+                resultado = resultado - df_colunas[col]
+            elif operacao == "*":
+                resultado = resultado * df_colunas[col]
+            elif operacao == "/":
+                resultado = resultado / df_colunas[col]
+            else:
+                raise ValueError("Operação inválida! Use + , - ,* ou /")
+            
+        nome_nova_coluna = f"resultado_{operacao}_colunas"
+        df_colunas[nome_nova_coluna] = resultado
+
+        return resultado
+        
+
     def gerar_painel_multigraficos(self, colunas: List[str], titulo_geral: str) -> None:
         total_linhas = len(colunas)
         figura = make_subplots(
@@ -101,8 +134,9 @@ class Analise_Exploratoria_marketplace:
 if __name__ == "__main__":
     analisador = Analise_Exploratoria_marketplace("SuperMarket_Analysis.csv")
     analisador.exibir_tabela_inicial()
+    analisador.contar_dados_varias_colunas(["Product line", "Gender", "Quantity"])
 
     analisador.gerar_painel_multigraficos(
-        colunas=["City", "Product line", "Gender", "Payment"],
+        colunas=["City", "Product line", "Gender", "Payment", "Customer type"],
         titulo_geral="Análise Exploratória"
     )
