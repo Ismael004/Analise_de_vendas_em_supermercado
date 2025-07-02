@@ -3,7 +3,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 from plotly.graph_objs import Figure
 from typing import List
-
+import plotly.io as pio
 
 class Analise_Exploratoria_marketplace:
     def __init__(self, arquivo_csv: str):
@@ -94,6 +94,7 @@ class Analise_Exploratoria_marketplace:
 
         figura.show()
         figura.write_html("painel_exploratorio.html")
+        figura.write_image("painel_exploratotio.pdf", format="pdf")
         print("Painel feito com sucesso")
 
 
@@ -102,6 +103,6 @@ if __name__ == "__main__":
     analisador.exibir_tabela_inicial()
 
     analisador.gerar_painel_multigraficos(
-        colunas=["City", "Product line"],
+        colunas=["City", "Product line", "Gender", "Payment"],
         titulo_geral="Análise Exploratória"
     )
