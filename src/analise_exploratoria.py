@@ -2,7 +2,7 @@ import pandas as pd
 import plotly.express as px
 from plotly.subplots import make_subplots
 from plotly.graph_objs import Figure
-from typing import List
+from typing import List, Optional
 import plotly.io as pio
 import logging
 
@@ -28,7 +28,7 @@ class Analise_Exploratoria_marketplace:
         return contagem
     
     def contar_dados_varias_colunas(self, colunas_analisadas: List[str]) -> pd.DataFrame:
-        contagem = self.df[colunas_analisadas].value_counts().reset_index()
+        contagem = self.df.groupby(colunas_analisadas[0])[colunas_analisadas[1]].sum().reset_index()
         return contagem
     
     def __gerar_grafico_barras(self, 
@@ -60,6 +60,8 @@ class Analise_Exploratoria_marketplace:
                      title="Distribuição percentual")
         return fig
     
+    
+    #Apagar caso a não ser útil
     def operacoes_colunas_criar_nova(self, colunas: List[str], operacao: str):
         df_colunas = self.contar_dados_varias_colunas(colunas)
 
@@ -87,13 +89,19 @@ class Analise_Exploratoria_marketplace:
         return resultado
         
 
-    def gerar_painel_multigraficos(self, colunas: List[str], titulo_geral: str) -> None:
+    def gerar_painel_multigraficos(self, titulo_geral: str, colunas: Optional[List[str]] = None, dataframes: Optional[dict] = None) -> None:
+        """
+        Gera painel de gráficos multiplos (barras + pizza) para colunas selecionadas.
+        Parâmetro `dataframes` espera um dict com { nome_coluna: dataframe_agrupado }
+        """
+        if colunas is None:
+            raise ValueError("O parâmetro 'colunas' não pode ser None.")
         total_linhas = len(colunas)
         figura = make_subplots(
             rows=total_linhas,
             cols=2,
             subplot_titles=[
-                f"{colunas[i//2]} - Barras" if i % 2 == 0 else f"{colunas[i//2]} - Pizza"
+                f"{colunas[i // 2]} - Barras" if i % 2 == 0 else f"{colunas[i // 2]} - Pizza"
                 for i in range(2 * total_linhas)
             ],
             specs=[[{"type": "xy"}, {"type": "domain"}] for _ in range(total_linhas)],
@@ -101,18 +109,27 @@ class Analise_Exploratoria_marketplace:
         )
 
         for idx, coluna in enumerate(colunas, start=1):
-            if coluna not in self.df.columns:
-                print("coluna não encontrada")
-                continue
+            if dataframes and coluna in dataframes:
+                df_agrupado = dataframes[coluna]
+            else:
+                # Usa método interno se o DataFrame não for fornecido
+                df_agrupado = self.__contar_dados_coluna(coluna, "Quantidade")
 
-            fig_barra = self.__gerar_grafico_barras(
-                coluna_analisada=coluna,
-                nome_info_contagem="Quantidade",
-                titulo_grafico=f"Distribuição por {coluna}",
-                nome_exibido_eixo_x=coluna
-            )
+            # Gráfico de barras
+            fig_barra = px.bar(df_agrupado,
+                            x=coluna,
+                            y="Quantidade",
+                            title=f"Distribuição por {coluna}",
+                            labels={coluna: coluna, "Quantidade": "Total"},
+                            color_discrete_sequence=["#636EFA"])
+            fig_barra.update_yaxes(dtick=20, gridcolor="lightgrey")
+            fig_barra.update_layout(xaxis_tickangle=-45)
 
-            fig_pizza = self.__gerar_grafico_pizza(coluna, nome_info_contagem="Quantidade")
+            # Gráfico de pizza
+            fig_pizza = px.pie(df_agrupado,
+                            values="Quantidade",
+                            names=coluna,
+                            title="Distribuição percentual")
 
             for trace in fig_barra.data:
                 figura.add_trace(trace, row=idx, col=1)
@@ -127,5 +144,5 @@ class Analise_Exploratoria_marketplace:
 
         figura.show()
         figura.write_html("outputs/painel_exploratorio.html")
-        figura.write_image("outputs/painel_exploratotio.pdf", format="pdf")
+        figura.write_image("outputs/painel_exploratorio.pdf", format="pdf")
         print("Painel feito com sucesso")
